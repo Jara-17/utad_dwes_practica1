@@ -14,6 +14,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from "../errors/exceptions.errors";
+import logger from "../utils/logger.util";
 
 class UserService {
   /**
@@ -31,7 +32,6 @@ class UserService {
       }
       return await UserRepository.create(user);
     } catch (error) {
-      console.error("Error al crear el usuario:", bold.red(error));
       throw new InternalServerErrorException(error.message);
     }
   }
@@ -46,13 +46,15 @@ class UserService {
    */
   async login(email: string, password: string): Promise<string> {
     const user = await UserRepository.findUserByEmail(email);
-    if (!user) {
+
+    if (!user || user.isDeleted) {
       throw new NotFoundException("Usuario no Encontrado");
     }
 
     const isPasswordCorrect = await checkPassword(password, user.password);
+
     if (!isPasswordCorrect) {
-      throw new ConflictException("Password Incorrecto");
+      throw new ConflictException("Password o Email Incorrectos");
     }
 
     return generateJWT({ id: user.id });
@@ -67,7 +69,6 @@ class UserService {
     try {
       return await UserRepository.findAll();
     } catch (error) {
-      console.error("Error al obtener los usuarios:", bold.red(error.message));
       throw new InternalServerErrorException(
         "No se pudo obtener la lista de usuarios."
       );
@@ -105,7 +106,9 @@ class UserService {
       await this.validateUserExist(id);
       return await UserRepository.update(id, userData);
     } catch (error) {
-      console.error("Error al actualizar el usuario:", bold.red(error.message));
+      logger.error(
+        `Error al actualizar el usuario: ${bold.red(error.message)}`
+      );
       throw new InternalServerErrorException(
         "No se pudo actualizar el usuario."
       );
@@ -123,7 +126,7 @@ class UserService {
       await this.validateUserExist(id);
       await UserRepository.delete(id);
     } catch (error) {
-      console.error("Error al eliminar el usuario:", bold.red(error.message));
+      logger.error(`Error al eliminar el usuario: ${bold.red(error.message)}`);
       throw new InternalServerErrorException("No se pudo eliminar el usuario.");
     }
   }
@@ -131,9 +134,7 @@ class UserService {
   private async validateUserCreation(user: IUser): Promise<void> {
     const userExist = await checkUserExistsByEmail(user.email);
     if (userExist) {
-      throw new ConflictException(
-        `El usuario con el email ya existe, intente con otro.`
-      );
+      throw new ConflictException(`El email ya existe, intente con otro.`);
     }
 
     const usernameExist = await checkUserExistsByUsername(user.username);

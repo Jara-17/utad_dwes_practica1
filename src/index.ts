@@ -1,10 +1,12 @@
 import colors from "colors";
 import server from "./server";
+import logger from "./utils/logger.util";
+import { env } from "./config/env.config";
 
-const port = process.env.SERVER_PORT || 4000;
+const port = env.port;
 
 server.listen(port, () =>
-  console.log(
+  logger.info(
     colors.cyan.bold(
       `REST API Funcionando en el puerto: http://localhost:${port}`
     )

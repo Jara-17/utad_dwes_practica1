@@ -28,7 +28,9 @@ class UserRepository {
    * @throws {Error} - Si ocurre un error al obtener los usuarios.
    */
   async findAll(): Promise<IUser[]> {
-    return await User.find();
+    return await User.find({ isDeleted: false }).select(
+      "-password -createdAt -updatedAt -isDeleted -deletedAt"
+    );
   }
 
   /**
@@ -38,7 +40,9 @@ class UserRepository {
    * @throws {Error} - Si ocurre un error al buscar el usuario.
    */
   async findById(id: string): Promise<IUser | null> {
-    return await User.findById(id);
+    return await User.findById(this.getActiveQuery({ _id: id })).select(
+      "-password -createdAt -updatedAt -isDeleted -deletedAt"
+    );
   }
 
   /**
@@ -48,7 +52,7 @@ class UserRepository {
    * @throws {Error} - Si ocurre un error al buscar el usuario.
    */
   async findUserByEmail(email: string): Promise<IUser | null> {
-    return await User.findOne({ email });
+    return await User.findOne({ email, isDeleted: false });
   }
 
   /**
@@ -58,7 +62,7 @@ class UserRepository {
    * @throws {Error} - Si ocurre un error al buscar el usuario.
    */
   async findUserByUsername(username: string): Promise<IUser | null> {
-    return await User.findOne({ username });
+    return await User.findOne({ username, isDeleted: false });
   }
 
   /**
@@ -79,7 +83,21 @@ class UserRepository {
    * @throws {Error} - Si ocurre un error al eliminar el usuario.
    */
   async delete(id: string): Promise<void> {
-    await User.findByIdAndDelete(id);
+    await User.findByIdAndUpdate(
+      id,
+      { $set: { isDeleted: true, deletedAt: new Date() } },
+      { new: true }
+    );
+  }
+
+  /**
+   * Genera un objeto de consulta para filtrar registros activos (no eliminados).
+   *
+   * @param {object} filter - Los criterios de filtro iniciales.
+   * @returns {object} Los criterios de filtro modificados, incluyendo la condición para excluir registros eliminados.
+   */
+  private getActiveQuery(filter: object): object {
+    return { ...filter, isDeleted: false };
   }
 }
 

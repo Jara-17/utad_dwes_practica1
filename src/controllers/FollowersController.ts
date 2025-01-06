@@ -5,6 +5,8 @@ import {
   NotFoundException,
   ConflictException,
 } from "../errors/exceptions.errors";
+import { sendHttpError, sendHttpResponse } from "../utils/httpResponse.util";
+import logger from "../utils/logger.util";
 
 export class FollowersController {
   /**
@@ -14,24 +16,34 @@ export class FollowersController {
    */
   static createFollower = async (req: Request, res: Response) => {
     const followerId = req.user._id; // Asumiendo que el ID del seguidor está en req.user
-    const followingId = req.params.followingId; // Asumiendo que el ID del seguido se pasa como parámetro de ruta
+    const { followingId } = req.params; // Asumiendo que el ID del seguido se pasa como parámetro de ruta
 
     try {
       const follower = await FollowersService.createFollower(
         followerId.toString(),
         followingId
       );
-      res.status(201).json(follower);
+      sendHttpResponse({
+        res,
+        message: "Siguiendo!.",
+        data: follower,
+      });
     } catch (error) {
       if (error instanceof ConflictException) {
-        res.status(409).json({ message: error.message });
+        sendHttpError({
+          res,
+          message: error.message,
+        });
       } else {
-        console.error(
+        logger.error(
           `Error al crear la relación de seguimiento: ${bold.red(
             error.message
           )}`
         );
-        res.status(500).json({ message: error.message });
+        sendHttpError({
+          res,
+          message: error.message,
+        });
       }
     }
   };
@@ -42,16 +54,22 @@ export class FollowersController {
    * @param {Response} res - La respuesta HTTP.
    */
   static getFollowers = async (req: Request, res: Response) => {
-    const userId = req.params.userId; // Asumiendo que el ID del usuario se pasa como parámetro de ruta
+    const userId = req.params.userId;
 
     try {
       const followers = await FollowersService.getFollowers(userId);
-      res.status(200).json(followers);
+      sendHttpResponse({
+        res,
+        data: followers,
+      });
     } catch (error) {
-      console.error(
+      logger.error(
         `Error al obtener los seguidores: ${bold.red(error.message)}`
       );
-      res.status(500).json({ message: error.message });
+      sendHttpError({
+        res,
+        message: error.message,
+      });
     }
   };
 
@@ -61,16 +79,20 @@ export class FollowersController {
    * @param {Response} res - La respuesta HTTP.
    */
   static getFollowing = async (req: Request, res: Response) => {
-    const userId = req.params.userId; // Asumiendo que el ID del usuario se pasa como parámetro de ruta
+    const { userId } = req.params;
 
     try {
       const following = await FollowersService.getFollowing(userId);
-      res.status(200).json(following);
+      sendHttpResponse({
+        res,
+        data: following,
+      });
     } catch (error) {
-      console.error(
-        `Error al obtener los seguidos: ${bold.red(error.message)}`
-      );
-      res.status(500).json({ message: error.message });
+      logger.error(`Error al obtener los seguidos: ${bold.red(error.message)}`);
+      sendHttpError({
+        res,
+        message: error.message,
+      });
     }
   };
 
@@ -84,19 +106,26 @@ export class FollowersController {
 
     try {
       await FollowersService.deleteFollower(followingId);
-      res
-        .status(200)
-        .json({ message: "Relación de seguimiento eliminada con éxito." });
+      sendHttpResponse({
+        res,
+        message: "Dejaste de seguir al usuario.",
+      });
     } catch (error) {
       if (error instanceof NotFoundException) {
-        res.status(404).json({ message: error.message });
+        sendHttpError({
+          res,
+          message: error.message,
+        });
       } else {
-        console.error(
+        logger.error(
           `Error al eliminar la relación de seguimiento: ${bold.red(
             error.message
           )}`
         );
-        res.status(500).json({ message: error.message });
+        sendHttpError({
+          res,
+          message: error.message,
+        });
       }
     }
   };

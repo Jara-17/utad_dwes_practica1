@@ -8,6 +8,8 @@ export interface IUser extends Document {
   description: string;
   profilePicture?: string;
   token?: string;
+  isDeleted: boolean;
+  deletedAt?: Date;
 }
 
 const userSchema = new Schema<IUser>(
@@ -19,6 +21,8 @@ const userSchema = new Schema<IUser>(
     description: { type: String, required: false },
     profilePicture: { type: String, required: false },
     token: { type: String, required: false },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, required: false },
   },
   {
     timestamps: true,
