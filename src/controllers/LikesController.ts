@@ -5,21 +5,37 @@ import {
   NotFoundException,
   ConflictException,
 } from "../errors/exceptions.errors";
+import {
+  HttpStatus,
+  sendHttpError,
+  sendHttpResponse,
+} from "../utils/httpResponse.util";
+import logger from "../utils/logger.util";
 
 export class LikesController {
   static createLike = async (req: Request, res: Response) => {
     const userId = req.user._id;
-    const postId = req.params.postId;
+    const { postId } = req.params;
 
     try {
       await LikesService.createLike(userId.toString(), postId);
-      res.status(201).json({ message: `${req.user.username} has dado like` });
+      sendHttpResponse({
+        res,
+        status: HttpStatus.CREATED,
+        message: `Like!`,
+      });
     } catch (error) {
       if (error instanceof ConflictException) {
-        res.status(409).json({ message: error.message });
+        sendHttpError({
+          res,
+          message: error.message,
+        });
       } else {
-        console.error(`Error al crear el like: ${bold.red(error.message)}`);
-        res.status(500).json({ message: error.message });
+        logger.error(`Error al crear el like: ${bold.red(error.message)}`);
+        sendHttpError({
+          res,
+          message: error.message,
+        });
       }
     }
   };
@@ -27,41 +43,67 @@ export class LikesController {
   static getAllLikes = async (req: Request, res: Response) => {
     try {
       const likes = await LikesService.getAllLikes();
-      res.status(200).json(likes);
+      sendHttpResponse({
+        res,
+        data: likes,
+      });
     } catch (error) {
-      console.error(`Error al obtener los likes: ${bold.red(error.message)}`);
-      res.status(500).json({ message: error.message });
+      logger.error(`Error al obtener los likes: ${bold.red(error.message)}`);
+      sendHttpError({
+        res,
+        message: error.message,
+      });
     }
   };
 
   static getLikeById = async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { likeId } = req.params;
 
     try {
-      const like = await LikesService.getLikeById(id);
-      res.status(200).json(like);
+      const like = await LikesService.getLikeById(likeId);
+      sendHttpResponse({
+        res,
+        data: like,
+      });
     } catch (error) {
       if (error instanceof NotFoundException) {
-        res.status(404).json({ message: error.message });
+        sendHttpError({
+          res,
+          status: HttpStatus.NOT_FOUND,
+          message: error.message,
+        });
       } else {
-        console.error(`Error al obtener el like: ${bold.red(error.message)}`);
-        res.status(500).json({ message: error.message });
+        logger.error(`Error al obtener el like: ${bold.red(error.message)}`);
+        sendHttpError({
+          res,
+          message: error.message,
+        });
       }
     }
   };
 
   static deleteLike = async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { likeId } = req.params;
 
     try {
-      await LikesService.deleteLike(id);
-      res.status(200).json({ message: "Like eliminado con éxito." });
+      await LikesService.deleteLike(likeId);
+      sendHttpResponse({
+        res,
+        message: `Like eliminado correctamente`,
+      });
     } catch (error) {
       if (error instanceof NotFoundException) {
-        res.status(404).json({ message: error.message });
+        sendHttpError({
+          res,
+          status: HttpStatus.NOT_FOUND,
+          message: error.message,
+        });
       } else {
-        console.error(`Error al eliminar el like: ${bold.red(error.message)}`);
-        res.status(500).json({ message: error.message });
+        logger.error(`Error al eliminar el like: ${bold.red(error.message)}`);
+        sendHttpError({
+          res,
+          message: error.message,
+        });
       }
     }
   };
