@@ -54,7 +54,7 @@ export class FollowersController {
    * @param {Response} res - La respuesta HTTP.
    */
   static getFollowers = async (req: Request, res: Response) => {
-    const userId = req.params.userId;
+    const userId = req.user._id.toString();
 
     try {
       const followers = await FollowersService.getFollowers(userId);
@@ -79,7 +79,7 @@ export class FollowersController {
    * @param {Response} res - La respuesta HTTP.
    */
   static getFollowing = async (req: Request, res: Response) => {
-    const { userId } = req.params;
+    const userId = req.user.id.toString();
 
     try {
       const following = await FollowersService.getFollowing(userId);

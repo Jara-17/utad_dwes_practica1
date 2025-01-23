@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import PostService from "../services/PostService";
-import { bold } from "colors";
 import {
   NotFoundException,
-  InternalServerErrorException,
+  BadRequestException,
+  ConflictException
 } from "../errors/exceptions.errors";
 import {
   HttpStatus,
@@ -15,53 +15,62 @@ import logger from "../utils/logger.util";
 export class PostController {
   static createPost = async (req: Request, res: Response) => {
     const userId = req.user._id;
-    const post = req.body;
+    const postData = req.body;
 
     try {
-      await PostService.createPost(userId.toString(), post);
+      const createdPost = await PostService.createPost(userId.toString(), postData);
+      logger.info("Post creado con éxito", { postId: createdPost.id });
       sendHttpResponse({
         res,
-        status: 201,
-        message: "Post creado con éxito.",
+        status: HttpStatus.CREATED,
+        message: "Post creado con éxito",
+        data: createdPost
       });
     } catch (error) {
-      if (error instanceof InternalServerErrorException) {
-        logger.error(
-          `[createPost] -> Error al crear el post: ${bold.red(error.message)}`
-        );
-        sendHttpError({
-          res,
-          message: error.message,
-        });
-      } else {
-        logger.error(
-          `[createPost] -> Error al crear el post: ${bold.red(error.message)}`
-        );
+      logger.error("Error en createPost", { 
+        error: error.message,
+        userId,
+        postData: { ...postData, content: undefined } // No logueamos el contenido por privacidad
+      });
+
+      if (error instanceof BadRequestException) {
         sendHttpError({
           res,
           status: HttpStatus.BAD_REQUEST,
-          message: error.message,
+          message: "Error en la solicitud",
+          errors: [error.message]
+        });
+      } else if (error instanceof NotFoundException) {
+        sendHttpError({
+          res,
+          status: HttpStatus.NOT_FOUND,
+          message: "Recurso no encontrado",
+          errors: [error.message]
+        });
+      } else {
+        sendHttpError({
+          res,
+          message: "Error interno al crear el post",
+          errors: [error.message]
         });
       }
     }
   };
 
-  static getAllPosts = async (req: Request, res: Response) => {
+  static getAllPosts = async (_req: Request, res: Response) => {
     try {
       const posts = await PostService.getAllPosts();
+      logger.info("Posts recuperados con éxito", { count: posts.length });
       sendHttpResponse({
         res,
-        data: posts,
+        data: posts
       });
     } catch (error) {
-      logger.error(
-        `[getAllPosts] -> Error al obtener los posts: ${bold.red(
-          error.message
-        )}`
-      );
+      logger.error("Error en getAllPosts", { error: error.message });
       sendHttpError({
         res,
-        message: error.message,
+        message: "Error al obtener los posts",
+        errors: [error.message]
       });
     }
   };
@@ -71,81 +80,130 @@ export class PostController {
 
     try {
       const post = await PostService.getPostById(postId);
+      logger.info("Post recuperado con éxito", { postId });
       sendHttpResponse({
         res,
-        data: post,
+        data: post
       });
     } catch (error) {
-      logger.error(
-        `[getPostById] -> Error al obtener el post: ${bold.red(error.message)}`
-      );
-      if (error instanceof NotFoundException) {
+      logger.error("Error en getPostById", { error: error.message, postId });
+
+      if (error instanceof BadRequestException) {
+        sendHttpError({
+          res,
+          status: HttpStatus.BAD_REQUEST,
+          message: "Error en la solicitud",
+          errors: [error.message]
+        });
+      } else if (error instanceof NotFoundException) {
         sendHttpError({
           res,
           status: HttpStatus.NOT_FOUND,
-          message: error.message,
+          message: "Recurso no encontrado",
+          errors: [error.message]
         });
       } else {
         sendHttpError({
           res,
-          message: error.message,
+          message: "Error al obtener el post",
+          errors: [error.message]
         });
       }
     }
   };
 
   static updatePost = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const post = req.body;
+    const { postId } = req.params;
+    const userId = req.user._id;
+    const postData = req.body;
 
     try {
-      await PostService.updatePost(id, post);
+      const updatedPost = await PostService.updatePost(postId, userId.toString(), postData);
+      logger.info("Post actualizado con éxito", { postId });
       sendHttpResponse({
         res,
         message: "Post actualizado con éxito",
+        data: updatedPost
       });
     } catch (error) {
-      logger.error(
-        `[updatePost] -> Error al actualizar el post: ${bold.red(
-          error.message
-        )}`
-      );
-      if (error instanceof NotFoundException) {
+      logger.error("Error en updatePost", { 
+        error: error.message, 
+        postId,
+        userId,
+        postData: { ...postData, content: undefined }
+      });
+
+      if (error instanceof BadRequestException) {
+        sendHttpError({
+          res,
+          status: HttpStatus.BAD_REQUEST,
+          message: "Error en la solicitud",
+          errors: [error.message]
+        });
+      } else if (error instanceof NotFoundException) {
         sendHttpError({
           res,
           status: HttpStatus.NOT_FOUND,
-          message: error.message,
+          message: "Recurso no encontrado",
+          errors: [error.message]
+        });
+      } else if (error instanceof ConflictException) {
+        sendHttpError({
+          res,
+          status: HttpStatus.FORBIDDEN,
+          message: "Acceso denegado",
+          errors: [error.message]
         });
       } else {
         sendHttpError({
           res,
-          message: error.message,
+          message: "Error al actualizar el post",
+          errors: [error.message]
         });
       }
     }
   };
 
   static deletePost = async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { postId } = req.params;
+    const userId = req.user._id;
 
     try {
-      await PostService.deletePost(id);
+      await PostService.deletePost(postId, userId.toString());
+      logger.info("Post eliminado con éxito", { postId });
       sendHttpResponse({
         res,
-        message: "Post eliminado con éxito",
+        message: "Post eliminado con éxito"
       });
     } catch (error) {
-      logger.error(`Error al eliminar el post: ${bold.red(error.message)}`);
-      if (error instanceof NotFoundException) {
+      logger.error("Error en deletePost", { error: error.message, postId, userId });
+
+      if (error instanceof BadRequestException) {
+        sendHttpError({
+          res,
+          status: HttpStatus.BAD_REQUEST,
+          message: "Error en la solicitud",
+          errors: [error.message]
+        });
+      } else if (error instanceof NotFoundException) {
         sendHttpError({
           res,
           status: HttpStatus.NOT_FOUND,
-          message: error.message,
+          message: "Recurso no encontrado",
+          errors: [error.message]
+        });
+      } else if (error instanceof ConflictException) {
+        sendHttpError({
+          res,
+          status: HttpStatus.FORBIDDEN,
+          message: "Acceso denegado",
+          errors: [error.message]
         });
       } else {
         sendHttpError({
           res,
-          message: error.message,
+          message: "Error al eliminar el post",
+          errors: [error.message]
         });
       }
     }

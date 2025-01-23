@@ -4,10 +4,11 @@ import {
   NotFoundException,
   InternalServerErrorException,
   ConflictException,
+  BadRequestException,
 } from "../errors/exceptions.errors";
 import { Types } from "mongoose";
-import { check } from "express-validator";
-import { checkLikeExistById } from "../utils/validations.utils";
+import PostRepository from "../repositories/PostRepository";
+import logger from "../utils/logger.util";
 
 class LikesService {
   /**
@@ -20,19 +21,42 @@ class LikesService {
    */
   async createLike(userId: string, postId: string): Promise<ILikes> {
     try {
-      // Verificar si el like ya existe (opcional, dependiendo de la lógica de negocio)
-      const existingLike = await LikesRepository.findOne(userId, postId);
+      if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(postId)) {
+        throw new BadRequestException("IDs inválidos");
+      }
+
+      const postIdObjectId = new Types.ObjectId(postId);
+      const userIdObjectId = new Types.ObjectId(userId);
+
+      // Verificar si el like ya existe
+      const existingLike = await LikesRepository.findOne(userIdObjectId, postIdObjectId);
       if (existingLike) {
         throw new ConflictException("Ya has dado like a este post.");
       }
 
-      const likeData = new Likes({
-        user: new Types.ObjectId(userId),
-        post: new Types.ObjectId(postId),
-      });
-      return await LikesRepository.create(likeData);
+      // Crear el nuevo like
+      const likeData = {
+        user: userIdObjectId,
+        post: postIdObjectId,
+      };
+
+      const newLike = await LikesRepository.create(likeData);
+      logger.info(`Like creado: ${newLike._id}`);
+
+      const post = await PostRepository.findById(postId);
+      logger.info(`Post encontrado: ${post._id}`);
+      post.likes.push(newLike._id as Types.ObjectId);
+      logger.info(`Like agregado al post: ${post.likes}`);
+      await post.save();
+      logger.info(`Like agregado al post: ${post._id}`);
+
+      return newLike;
     } catch (error) {
-      throw new InternalServerErrorException("Error al crear el like.");
+      if (error instanceof ConflictException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException("Error al crear el like.");
+      }
     }
   }
 
@@ -58,8 +82,7 @@ class LikesService {
    */
   async getLikeById(id: string): Promise<ILikes> {
     try {
-      await this.validateLikeExist(id);
-      return await LikesRepository.findById(id);
+      return await LikesRepository.findById(new Types.ObjectId(id));
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -76,17 +99,16 @@ class LikesService {
    */
   async deleteLike(id: string): Promise<void> {
     try {
-      this.validateLikeExist(id);
-      await LikesRepository.delete(id);
+      // Buscar el like correspondiente
+      const like = await LikesRepository.findById(new Types.ObjectId(id));
+      // Eliminar el like de la lista del post
+      const post = await PostRepository.findById(like.post._id.toString());
+      post.likes = post.likes.filter((likeId) => likeId.toString() !== id);
+      await post.save();
+      // Eliminar el like
+      await LikesRepository.delete(like.id);
     } catch (error) {
       throw new InternalServerErrorException("Error al eliminar el like.");
-    }
-  }
-
-  private async validateLikeExist(id: string) {
-    const likeExist = await checkLikeExistById(id);
-    if (!likeExist) {
-      throw new NotFoundException("Like no encontrado.");
     }
   }
 }

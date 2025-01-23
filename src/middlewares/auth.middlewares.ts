@@ -2,9 +2,11 @@ import { Request, Response, NextFunction } from "express";
 import { validationResult } from "express-validator";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { IUser } from "../models/User";
-import { sendHttpError } from "../utils/httpResponse.util";
+import { sendHttpError, sendHttpResponse } from "../utils/httpResponse.util";
 import { env } from "../config/env.config";
 import UserRepository from "../repositories/UserRepository";
+import { UnauthorizedException, NotFoundException, BadRequestException } from "../errors/exceptions.errors";
+import { HttpStatus } from "../utils/httpResponse.util";
 
 declare global {
   namespace Express {
@@ -19,47 +21,58 @@ export async function authenticate(
   res: Response,
   next: NextFunction
 ) {
-  const bearer = req.headers.authorization;
-
-  if (!bearer || !bearer.startsWith("Bearer ")) {
-    return sendHttpError({
-      res,
-      status: 401,
-      message: "Token no válido.",
-    });
-  }
-
-  const token = bearer.split(" ")[1];
-
   try {
-    const decoded = jwt.verify(token, env.secret_key) as JwtPayload;
+    const bearer = req.headers.authorization;
 
-    if (!decoded || typeof decoded !== "object" || !decoded.id) {
-      return sendHttpError({
-        res,
-        status: 401,
-        message: "Token no válido.",
-      });
+    if (!bearer || !bearer.startsWith("Bearer ")) {
+      throw new UnauthorizedException("Token no proporcionado o formato inválido");
     }
 
-    const user = await UserRepository.findById(decoded.id);
+    const token = bearer.split(" ")[1];
+    let decoded: JwtPayload;
+
+    try {
+      decoded = jwt.verify(token, env.secret_key) as JwtPayload;
+    } catch (error) {
+      throw new UnauthorizedException("Token no válido o expirado");
+    }
+
+    if (!decoded || typeof decoded !== "object" || !decoded.id) {
+      throw new UnauthorizedException("Token malformado");
+    }
+
+    const user = await UserRepository.findById(decoded.id, {
+      visibility: "private", includeDeleted: false});
 
     if (!user) {
-      return sendHttpError({
-        res,
-        status: 404,
-        message: "Usuario no encontrado.",
-      });
+      throw new NotFoundException("Usuario no encontrado");
+    }
+
+    if (user.isDeleted) {
+      throw new UnauthorizedException("Usuario desactivado");
     }
 
     req.user = user;
     next();
   } catch (error) {
+    if (error instanceof UnauthorizedException) {
+      return sendHttpError({
+        res,
+        status: HttpStatus.UNAUTHORIZED,
+        message: error.message,
+      });
+    }
+    if (error instanceof NotFoundException) {
+      return sendHttpError({
+        res,
+        status: HttpStatus.NOT_FOUND,
+        message: error.message,
+      });
+    }
     return sendHttpError({
       res,
-      status: 401,
-      message: "Token no válido.",
-      errors: error.message,
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: "Error interno del servidor",
     });
   }
 }
@@ -70,14 +83,26 @@ export const validateResults = (
   res: Response,
   next: NextFunction
 ) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const errorMessages = errors.array().map((error) => error.msg);
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new BadRequestException(
+        errors.array().map((error) => error.msg).join(", ")
+      );
+    }
+    next();
+  } catch (error) {
+    if (error instanceof BadRequestException) {
+      return sendHttpError({
+        res,
+        status: HttpStatus.BAD_REQUEST,
+        message: error.message,
+      });
+    }
     return sendHttpError({
       res,
-      status: 400,
-      errors: errorMessages,
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: "Error interno del servidor",
     });
   }
-  next();
 };

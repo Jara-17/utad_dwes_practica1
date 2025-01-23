@@ -4,6 +4,7 @@ import { bold } from "colors";
 import {
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from "../errors/exceptions.errors";
 import {
   HttpStatus,
@@ -28,10 +29,19 @@ export class LikesController {
       if (error instanceof ConflictException) {
         sendHttpError({
           res,
+          status: HttpStatus.CONFLICT,
+          message: error.message,
+        });
+      } else if (error instanceof BadRequestException) {
+        sendHttpError({
+          res,
+          status: HttpStatus.BAD_REQUEST,
           message: error.message,
         });
       } else {
-        logger.error(`Error al crear el like: ${bold.red(error.message)}`);
+        logger.error(
+          `[createLike] -> Error al crear el like: ${bold.red(error)}`
+        );
         sendHttpError({
           res,
           message: error.message,
