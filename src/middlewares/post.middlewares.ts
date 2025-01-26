@@ -118,15 +118,15 @@ export const hasAccess = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const postUserId = req.post.user._id.toString();
-    const currentUserId = req.user._id.toString();
+  const postUserId = req.post.user._id.toString();
+  const currentUserId = req.user._id.toString();
 
-    logger.debug("Verificando acceso al post", {
-      postId: req.post._id,
-      postUserId,
-      currentUserId
-    });
+  logger.info("Verificando acceso al post", {
+    postId: req.post._id,
+    postUserId,
+    currentUserId
+  });
+  try {
 
     if (postUserId !== currentUserId) {
       logger.warn("Intento de acceso no autorizado a post", {

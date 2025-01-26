@@ -85,7 +85,17 @@ class UserRepository {
     }
 
     const query = options.includeDeleted ? { _id: id } : { _id: id, isDeleted: false };
-    const fields = this.getFieldsByVisibility(options.visibility);
+    
+    // Nuevo enfoque para manejar la proyección
+    let fields: string | null = null;
+    
+    if (options.includeDeleted) {
+      // Si incluimos usuarios eliminados, seleccionamos todos los campos
+      fields = null;
+    } else {
+      // Si no incluimos usuarios eliminados, usamos la selección de campos por visibilidad
+      fields = this.getFieldsByVisibility(options.visibility);
+    }
 
     const baseQuery = User.findOne(query);
     
@@ -93,7 +103,12 @@ class UserRepository {
       baseQuery.select(fields);
     }
 
-    return await baseQuery
+    // Si necesitamos información específica de usuarios eliminados, forzamos su inclusión
+    if (options.includeDeleted) {
+      baseQuery.select('+isDeleted +deletedAt');
+    }
+
+    return await baseQuery;
   }
 
   /**

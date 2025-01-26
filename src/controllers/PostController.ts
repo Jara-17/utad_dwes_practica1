@@ -117,6 +117,10 @@
       const userId = req.user._id.toString();
       const postData = req.body;
 
+      console.log(postData);
+      console.log(postId);
+      console.log(userId);
+
       logger.info("Iniciando actualización de post", { 
         postId, 
         userId, 
