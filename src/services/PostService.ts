@@ -58,10 +58,6 @@ class PostService {
       });
 
       const createdPost = await PostRepository.create(post);
-      
-      // Actualizar la referencia en el usuario
-      user.posts.push(createdPost._id as Types.ObjectId);
-      await user.save();
 
       return createdPost;
     } catch (error) {
@@ -126,31 +122,72 @@ class PostService {
    */
   async updatePost(id: string, userId: string, postData: UpdatePostData): Promise<IPost> {
     try {
+      // Validaciones iniciales
       if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(userId)) {
         throw new BadRequestException('IDs inválidos');
       }
 
-      const post = await PostRepository.findById(id);
-      
-      // Verificar propiedad del post
-      if (post.user._id.toString() !== userId) {
-        throw new ConflictException('No tienes permiso para modificar este post');
+      // Campos permitidos para actualización
+      const allowedFields = ['header', 'content', 'image'];
+      const updateFields: Partial<IPost> = {};
+
+      // Filtrar y validar campos
+      Object.keys(postData).forEach(key => {
+        if (allowedFields.includes(key)) {
+          const value = postData[key];
+          
+          // Validaciones específicas por campo
+          switch (key) {
+            case 'header':
+              if (typeof value !== 'string' || value.trim().length < 3) {
+                throw new BadRequestException('El título debe tener al menos 3 caracteres');
+              }
+              break;
+            case 'content':
+              if (typeof value !== 'string' || value.trim().length < 10) {
+                throw new BadRequestException('El contenido debe tener al menos 10 caracteres');
+              }
+              break;
+            case 'image':
+              // Validación básica de URL
+              if (value && !/^https?:\/\/.+/.test(value)) {
+                throw new BadRequestException('La imagen debe ser una URL válida');
+              }
+              break;
+          }
+
+          updateFields[key] = value;
+        }
+      });
+
+      // Verificar que hay campos para actualizar
+      if (Object.keys(updateFields).length === 0) {
+        throw new BadRequestException('No hay campos válidos para actualizar');
       }
 
-      // Validar datos de actualización
-      if (postData.header?.trim() === '' || postData.content?.trim() === '') {
-        throw new BadRequestException('El título y el contenido no pueden estar vacíos');
-      }
+      // Actualizar post
+      const updatedPost = await PostRepository.update(id, updateFields, userId);
 
-      return await PostRepository.update(id, postData);
+      logger.info('Post actualizado exitosamente', {
+        postId: id,
+        userId,
+        updatedFields: Object.keys(updateFields)
+      });
+
+      return updatedPost;
     } catch (error) {
-      logger.error("Error al actualizar el post", { error: error.message });
-      if (error instanceof BadRequestException || 
-          error instanceof NotFoundException ||
-          error instanceof ConflictException) {
+      logger.error('Error al actualizar post', {
+        postId: id,
+        userId,
+        error: error.message,
+        stack: error.stack
+      });
+
+      if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new InternalServerErrorException("Error al actualizar el post");
+
+      throw new InternalServerErrorException('Error interno al actualizar el post');
     }
   }
 
@@ -177,16 +214,6 @@ class PostService {
       }
 
       await PostRepository.delete(id);
-
-      // Eliminar la referencia del post en el usuario
-      const user = await UserRepository.findById(userId, {
-        visibility: "private",
-        includeDeleted: false
-      });
-      if (user) {
-        user.posts = user.posts.filter(postId => postId.toString() !== id);
-        await user.save();
-      }
     } catch (error) {
       logger.error("Error al eliminar el post", { error: error.message });
       if (error instanceof BadRequestException || 

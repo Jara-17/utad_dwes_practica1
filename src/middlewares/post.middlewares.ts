@@ -79,6 +79,8 @@ export const validatePostExists = async (
     const { postId } = req.params;
     const post = await PostRepository.findById(postId);
 
+    logger.info("Verificando existencia del post", { postId });
+
     if (!post) {
       logger.warn("Post no encontrado", { postId });
       throw new NotFoundException(`Post con ID ${postId} no encontrado`);
@@ -119,6 +121,12 @@ export const hasAccess = async (
   try {
     const postUserId = req.post.user._id.toString();
     const currentUserId = req.user._id.toString();
+
+    logger.debug("Verificando acceso al post", {
+      postId: req.post._id,
+      postUserId,
+      currentUserId
+    });
 
     if (postUserId !== currentUserId) {
       logger.warn("Intento de acceso no autorizado a post", {

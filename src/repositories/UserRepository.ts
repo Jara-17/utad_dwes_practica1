@@ -11,12 +11,7 @@ export interface UserQueryOptions {
 class UserRepository {
   private readonly publicFields = "-isDeleted -deletedAt -updatedAt -createdAt -password -token -__v -originalEmail -originalUsername";
   private readonly privateFields = "-password -token -__v";
-  private readonly defaultPopulate = [
-    {
-      path: "posts",
-      select: "_id header content -user",
-    }
-  ];
+  
 
   /**
    * Obtiene los campos a seleccionar según el nivel de visibilidad
@@ -75,7 +70,7 @@ class UserRepository {
       baseQuery.select(fields);
     }
 
-    return await baseQuery.populate(this.defaultPopulate);
+    return await baseQuery
   }
 
   /**
@@ -98,7 +93,7 @@ class UserRepository {
       baseQuery.select(fields);
     }
 
-    return await baseQuery.populate(this.defaultPopulate);
+    return await baseQuery
   }
 
   /**
@@ -134,7 +129,7 @@ class UserRepository {
       { _id: id, isDeleted: false },
       { $set: userData },
       { new: true }
-    ).populate(this.defaultPopulate);
+    )
   }
 
   /**

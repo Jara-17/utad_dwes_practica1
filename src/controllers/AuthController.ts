@@ -27,15 +27,6 @@ interface LoginRequest extends Request {
   };
 }
 
-interface UpdateUserRequest extends Request {
-  user: IUser;
-  body: {
-    username?: string;
-    email?: string;
-    password?: string;
-  };
-}
-
 interface AuthenticatedRequest extends Request {
   user: IUser;
 }
@@ -146,14 +137,14 @@ export class AuthController {
     }
   }
 
-  static async getUserById(req: Request<{ userId: string }>, res: Response) {
+  static async getUserById(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      logger.info("Buscando usuario por ID", { userId });
+      const { id } = req.params;
+      logger.info("Buscando usuario por ID", { id });
 
-      const user = await UserService.getUserById(userId);
+      const user = await UserService.getUserById(id);
       
-      logger.info("Usuario encontrado", { userId, email: user.email });
+      logger.info("Usuario encontrado", { id, email: user.email });
 
       sendHttpResponse({
         res,
@@ -165,9 +156,9 @@ export class AuthController {
     }
   }
 
-  static async updateUser(req: UpdateUserRequest, res: Response) {
+  static async updateUser(req: Request, res: Response) {
     try {
-      const userId = req.user.id;
+      const userId = req.user._id.toString();
       logger.info("Iniciando actualización de usuario", {
         userId,
         updateFields: Object.keys(req.body)

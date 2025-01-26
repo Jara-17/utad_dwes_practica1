@@ -5,12 +5,16 @@ import FollowersController from "../controllers/FollowersController";
 import {
   createAccountValidation,
   loginValidation,
+  updateAccountValidation,
 } from "../validators/auth.validator";
 import {
   handleMulterError,
   uploadProfilePictureMiddleware,
 } from "../middlewares/multer.middleware";
-import { hasUserAccess, hasFollowerAccess } from "../middlewares/access.middleware";
+import {
+  hasUserAccess,
+  hasFollowerAccess,
+} from "../middlewares/access.middleware";
 
 const router: Router = Router();
 
@@ -113,6 +117,35 @@ router.use(authenticate);
  */
 router.get("/users", AuthController.getAllUsers);
 
+
+/**
+ * @openapi
+ * /api/auth/users/{id}:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: Obtiene un usuario por ID.
+ *     description: Obtiene los datos de un usuario por su ID.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Usuario obtenido exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       404:
+ *         description: Usuario no encontrado.
+ *       500:
+ *         description: Error al obtener el usuario.
+ */
+router.get("/users/:id", AuthController.getUserById);
+
 /**
  * @openapi
  * /api/auth/users:
@@ -142,7 +175,13 @@ router.get("/users", AuthController.getAllUsers);
  *       500:
  *         description: Error al actualizar el perfil.
  */
-router.put("/users", hasUserAccess, AuthController.updateUser);
+router.put(
+  "/users",
+  hasUserAccess,
+  updateAccountValidation,
+  validateResults,
+  AuthController.updateUser
+);
 
 /**
  * @openapi

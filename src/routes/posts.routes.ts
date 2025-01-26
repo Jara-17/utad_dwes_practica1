@@ -160,7 +160,7 @@ router.put(
  *       500:
  *         description: Error al eliminar el post.
  */
-router.delete("/:postId", PostController.deletePost);
+router.delete("/:postId", hasAccess, PostController.deletePost);
 
 /**
  * @openapi

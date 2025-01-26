@@ -1,3 +1,4 @@
+import logger from "../utils/logger.util";
 import Post, { IPost } from "../models/Post";
 import { Types } from "mongoose";
 import {
@@ -97,36 +98,43 @@ class PostRepository {
    * Actualiza un post existente por su ID.
    * @param id - El ID del post a actualizar.
    * @param postData - Los nuevos datos del post.
+   * @param userId - El ID del usuario que realiza la actualización.
    * @throws BadRequestException si el ID es inválido o los datos son inválidos
    * @throws NotFoundException si el post no existe
    * @throws InternalServerErrorException si hay un error interno del servidor
    * @returns Una promesa que se resuelve con el post actualizado.
    */
-  async update(id: string, postData: Partial<Omit<IPost, '_id' | 'user' | 'createdAt' | 'updatedAt'>>): Promise<IPost> {
+  async update(
+    id: string, 
+    postData: Partial<Omit<IPost, '_id' | 'user' | 'createdAt' | 'updatedAt'>>,
+    userId: string
+  ): Promise<IPost> {
     try {
-      if (!Types.ObjectId.isValid(id)) {
-        throw new BadRequestException('ID de post inválido');
-      }
-
+      // Actualizar post
       const updatedPost = await Post.findByIdAndUpdate(
         id,
         postData,
-        { new: true, runValidators: true }
       ).populate(this.userPopulateOptions);
 
       if (!updatedPost) {
-        throw new NotFoundException(`Post con ID ${id} no encontrado`);
+        throw new InternalServerErrorException('No se pudo actualizar el post');
       }
 
       return updatedPost;
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      logger.error('Error en repositorio al actualizar post', {
+        postId: id,
+        userId,
+        error: error.message,
+        stack: error.stack
+      });
+
+      if (error instanceof BadRequestException || 
+          error instanceof NotFoundException) {
         throw error;
       }
-      if (error instanceof Error && error.name === 'ValidationError') {
-        throw new BadRequestException(`Datos del post inválidos: ${error.message}`);
-      }
-      throw new InternalServerErrorException(`Error al actualizar el post: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+
+      throw new InternalServerErrorException('Error interno al actualizar el post');
     }
   }
 

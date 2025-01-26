@@ -1,5 +1,4 @@
 import { Schema, model, Document, Types } from "mongoose";
-import { IPost } from "./Post";
 
 export interface IUser extends Document {
   username: string;
@@ -9,7 +8,6 @@ export interface IUser extends Document {
   description: string;
   profilePicture?: string;
   token?: string;
-  posts: Types.ObjectId[];
   isDeleted: boolean;
   deletedAt?: Date;
   originalEmail?: string;
@@ -42,7 +40,6 @@ const userSchema = new Schema<IUser>(
     description: { type: String, required: false },
     profilePicture: { type: String, required: false },
     token: { type: String, required: false },
-    posts: [{ type: Types.ObjectId, ref: "Post" }],
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date, required: false },
     // Guardamos los valores originales para referencia

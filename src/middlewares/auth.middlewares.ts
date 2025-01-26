@@ -25,7 +25,7 @@ export async function authenticate(
     const bearer = req.headers.authorization;
 
     if (!bearer || !bearer.startsWith("Bearer ")) {
-      throw new UnauthorizedException("Token no proporcionado o formato inválido");
+      throw new UnauthorizedException("Token no válido");
     }
 
     const token = bearer.split(" ")[1];
@@ -34,22 +34,18 @@ export async function authenticate(
     try {
       decoded = jwt.verify(token, env.secret_key) as JwtPayload;
     } catch (error) {
-      throw new UnauthorizedException("Token no válido o expirado");
+      throw new UnauthorizedException("Token no válido");
     }
 
     if (!decoded || typeof decoded !== "object" || !decoded.id) {
-      throw new UnauthorizedException("Token malformado");
+      throw new UnauthorizedException("Token no válido");
     }
 
     const user = await UserRepository.findById(decoded.id, {
       visibility: "private", includeDeleted: false});
 
-    if (!user) {
+    if (!user && user.isDeleted) {
       throw new NotFoundException("Usuario no encontrado");
-    }
-
-    if (user.isDeleted) {
-      throw new UnauthorizedException("Usuario desactivado");
     }
 
     req.user = user;

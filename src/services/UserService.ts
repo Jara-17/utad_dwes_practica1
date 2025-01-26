@@ -154,6 +154,8 @@ class UserService {
         includeDeleted: isAdmin
       });
 
+      logger.info(`Usuario encontrado`, { user });
+
       if (!user) {
         logger.warn("Usuario no encontrado", { userId: id });
         throw new NotFoundException("Usuario no encontrado");
@@ -234,7 +236,7 @@ class UserService {
       logger.info("Iniciando proceso de eliminación de usuario", { userId: id });
 
       const user = await UserRepository.findById(id, {
-        visibility: "admin",
+        visibility: "private",
         includeDeleted: false
       });
 
