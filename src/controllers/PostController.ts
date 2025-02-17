@@ -116,11 +116,6 @@
       const { postId } = req.params;
       const userId = req.user._id.toString();
       const postData = req.body;
-
-      console.log(postData);
-      console.log(postId);
-      console.log(userId);
-
       logger.info("Iniciando actualización de post", { 
         postId, 
         userId, 
@@ -128,7 +123,7 @@
       });
 
       try {
-        const updatedPost = await PostService.updatePost(postId, userId, postData);
+        await PostService.updatePost(postId, userId, postData);
         
         logger.info("Post actualizado con éxito", { 
           postId, 
@@ -138,7 +133,6 @@
         sendHttpResponse({
           res,
           message: "Post actualizado con éxito",
-          data: updatedPost
         });
       } catch (error) {
         logger.error("Error en updatePost", { 

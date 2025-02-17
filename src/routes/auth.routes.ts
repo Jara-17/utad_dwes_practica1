@@ -305,7 +305,7 @@ router.post(
  *         description: Seguidor eliminado exitosamente.
  */
 router.delete(
-  "/followers/:followerId",
+  "/followers/:followingId",
   hasFollowerAccess,
   FollowersController.deleteFollower
 );

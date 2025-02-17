@@ -103,6 +103,7 @@ export class FollowersController {
    */
   static deleteFollower = async (req: Request, res: Response) => {
     const { followingId } = req.params;
+    logger.info(`Eliminando relación de seguimiento: ${bold(followingId)}`);
 
     try {
       await FollowersService.deleteFollower(followingId);
