@@ -24,7 +24,8 @@ const DEFAULT_CONFIG: LoggerConfig = {
   logsDir: "logs",
   maxFiles: 7,
   maxSize: "10m",
-  environment: (process.env.NODE_ENV as "development" | "production") || "development"
+  environment:
+    (process.env.NODE_ENV as "development" | "production") || "development",
 };
 
 /**
@@ -48,15 +49,18 @@ const ensureLogsDirectory = (): void => {
 /**
  * Formato personalizado para los logs
  */
-const customFormat = format.printf(({ level, message, timestamp, ...metadata }) => {
-  let msg = `[${timestamp}] ${level}: ${message}`;
-  
-  if (Object.keys(metadata).length > 0) {
-    msg += ` | ${JSON.stringify(metadata)}`;
+const customFormat = format.printf(
+  ({ level, message, timestamp, metadata }) => {
+    let msg = `[${timestamp}] ${level}: ${message}`;
+
+    // Extraer los metadatos correctamente sin anidarlos dentro de "metadata"
+    if (metadata && Object.keys(metadata).length > 0) {
+      msg += ` | ${JSON.stringify(metadata)}`;
+    }
+
+    return msg;
   }
-  
-  return msg;
-});
+);
 
 /**
  * Configuración del formato de los logs
@@ -65,7 +69,9 @@ const logFormat = format.combine(
   format.timestamp({ format: DEFAULT_CONFIG.dateFormat }),
   format.metadata({ fillExcept: ["message", "level", "timestamp"] }),
   format.errors({ stack: true }),
-  DEFAULT_CONFIG.environment === "development" ? format.colorize() : format.uncolorize(),
+  DEFAULT_CONFIG.environment === "development"
+    ? format.colorize()
+    : format.uncolorize(),
   customFormat
 );
 
@@ -78,7 +84,7 @@ ensureLogsDirectory();
 const transports = [
   // Log en consola
   new winston.transports.Console({
-    format: logFormat
+    format: logFormat,
   }),
   // Log en archivo diario
   new winston.transports.File({
@@ -86,7 +92,7 @@ const transports = [
     format: logFormat,
     maxsize: parseInt(DEFAULT_CONFIG.maxSize),
     maxFiles: DEFAULT_CONFIG.maxFiles,
-    tailable: true
+    tailable: true,
   }),
   // Log de errores separado
   new winston.transports.File({
@@ -94,8 +100,8 @@ const transports = [
     level: "error",
     format: logFormat,
     maxsize: parseInt(DEFAULT_CONFIG.maxSize),
-    maxFiles: DEFAULT_CONFIG.maxFiles
-  })
+    maxFiles: DEFAULT_CONFIG.maxFiles,
+  }),
 ];
 
 /**
@@ -105,7 +111,7 @@ const logger = winston.createLogger({
   level: DEFAULT_CONFIG.level,
   format: logFormat,
   transports,
-  exitOnError: false
+  exitOnError: false,
 });
 
 /**
@@ -127,7 +133,8 @@ const enhancedLogger: Logger = {
   warn: (message: string, meta?: object) => logger.warn(message, meta),
   info: (message: string, meta?: object) => logger.info(message, meta),
   debug: (message: string, meta?: object) => logger.debug(message, meta),
-  log: (level: string, message: string, meta?: object) => logger.log(level, message, meta)
+  log: (level: string, message: string, meta?: object) =>
+    logger.log(level, message, meta),
 };
 
 // Exportar el logger mejorado
